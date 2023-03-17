@@ -1,0 +1,14 @@
+manifest_version = 1
+
+[module]
+name = "Repost scolder"
+id = "repost_scolder"
+description = "Bullies users who send images that have already been sent before"
+version = "1.0.0"
+license = "GNU GPLv3"
+authors = ["Fripe"]
+requirements = [
+    "Pillow~=9.4.0",
+    "ImageHash~=4.3.1",
+    "aiohttp",
+]

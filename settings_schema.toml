@@ -1,0 +1,18 @@
+# Accepted file extensions
+accepted_file_formats = [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+]
+
+# The hash size, larger values make the bot care more about small deviances. Minimum value of 2
+hash_size = 8
+
+# Channels to look for reposts in. No other channels will have hteir images stored
+allowed_channels = [111111111111111111]
+
+ignore_bots = true
+
+scold_message = "That image has already been posted."
