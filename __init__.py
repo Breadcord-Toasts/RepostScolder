@@ -1,5 +1,6 @@
 import asyncio
 import io
+import random
 import sqlite3
 import urllib.parse
 
@@ -19,7 +20,12 @@ class RepostScolder(breadcord.module.ModuleCog):
 
         self.connection = sqlite3.connect(self.module.storage_path / "images.db")
         self.cursor = self.connection.cursor()
-        self.cursor.execute("CREATE TABLE IF NOT EXISTS image_hashes (hash TEXT PRIMARY KEY NOT NULL UNIQUE)")
+        self.cursor.execute(
+            "CREATE TABLE IF NOT EXISTS image_hashes ("
+            "   hash TEXT PRIMARY KEY NOT NULL UNIQUE,"
+            "   guild_id NUMBER NOT NULL"
+            ")"
+        )
         self.connection.commit()
 
     async def cog_load(self) -> None:
@@ -37,7 +43,7 @@ class RepostScolder(breadcord.module.ModuleCog):
         image: Image.Image = Image.open(image)
         return str(imagehash.average_hash(image, self.settings.hash_size.value))
 
-    async def is_dupe(self, image_url: str) -> bool:
+    async def is_dupe(self, image_url: str, guild_id: int) -> bool:
         fetched_image = await self.fetch_image(image_url)
         if fetched_image is None:
             return False
@@ -46,13 +52,13 @@ class RepostScolder(breadcord.module.ModuleCog):
         image_hash = str(image_hash[0])
         exists = bool(
             self.cursor.execute(
-                "SELECT EXISTS(SELECT 1 FROM image_hashes WHERE hash = ?)",
-                (image_hash,),
+                "SELECT EXISTS(SELECT 1 FROM image_hashes WHERE hash = ? AND guild_id = ?)",
+                (image_hash, guild_id),
             ).fetchone()[0]
         )
 
         if not exists:
-            self.cursor.execute("INSERT INTO image_hashes VALUES (?)", (image_hash,))
+            self.cursor.execute("INSERT INTO image_hashes VALUES (?, ?)", (image_hash, guild_id))
             self.connection.commit()
 
         return exists
@@ -61,7 +67,7 @@ class RepostScolder(breadcord.module.ModuleCog):
     async def on_message(self, message: discord.Message) -> None:
         if (
             message.channel.id not in self.settings.allowed_channels.value
-            or self.settings.ignore_bots.value
+            or (self.settings.ignore_bots.value and message.author.bot)
         ):
             return
 
@@ -75,9 +81,12 @@ class RepostScolder(breadcord.module.ModuleCog):
             if file_extension not in self.settings.accepted_file_formats.value:
                 continue
 
-            is_dupe = await self.is_dupe(url)
-            if is_dupe:
-                await message.reply(self.settings.scold_message.value)
+            if await self.is_dupe(url, message.guild.id):
+                scold_message = self.settings.scold_message.value
+                if isinstance(scold_message, list):
+                    scold_message = random.choice(scold_message)
+
+                await message.reply(scold_message)
 
 
 async def setup(bot: breadcord.Bot):
